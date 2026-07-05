@@ -1,0 +1,29 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = """
+Default permissions for the purchases plugin.
+
+#### Granted Permissions
+
+- Support probe (`is_supported`) and product catalog reads
+  (`get_products`, `get_subscription_status`, `get_entitlements`).
+- Store payment flows (`purchase`, `restore_purchases`) and the store's own
+  subscription-management surface (`manage_subscriptions`).
+- Purchase-update events (`register_listener`, `remove_listener`).
+
+Note: these are Tauri IPC permissions. Actual purchases are additionally
+gated by the OS payment sheet — nothing can be charged without the user
+confirming in the store's own UI.
+"""
+permissions = [
+  "allow-is-supported",
+  "allow-get-products",
+  "allow-purchase",
+  "allow-restore-purchases",
+  "allow-get-entitlements",
+  "allow-get-subscription-status",
+  "allow-manage-subscriptions",
+  "allow-register-listener",
+  "allow-remove-listener",
+]
