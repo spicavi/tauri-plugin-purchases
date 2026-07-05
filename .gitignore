@@ -1,0 +1,12 @@
+/target
+node_modules/
+dist-js/
+/.tauri
+/ios/.build
+/ios/.tauri
+/ios/Package.resolved
+/android/build
+/android/.gradle
+/android/.tauri
+.DS_Store
+.turbo/
