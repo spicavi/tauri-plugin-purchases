@@ -1,0 +1,2 @@
+-keep class app.tauri.** { *; }
+-keep class androidx.health.connect.** { *; }
