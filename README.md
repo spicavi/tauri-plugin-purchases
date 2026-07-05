@@ -20,7 +20,7 @@ In-app subscriptions and purchases for Tauri 2 apps — **StoreKit 2 on iOS**
 ## Installation
 
 ```bash
-pnpm add @spicavi/tauri-plugin-purchases-api
+pnpm add @spicavi/tauri-plugin-purchases
 ```
 
 ```toml
@@ -56,7 +56,7 @@ import {
 	getSubscriptionStatus,
 	manageSubscriptions,
 	onPurchaseUpdated,
-} from '@spicavi/tauri-plugin-purchases-api';
+} from '@spicavi/tauri-plugin-purchases';
 
 // Catalog — gate free-trial copy on introEligible, never on the offer alone.
 const [product] = await getProducts(['app.example.plus.monthly']);

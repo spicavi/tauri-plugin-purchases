@@ -1,5 +1,5 @@
 {
-  "name": "@spicavi/tauri-plugin-purchases-api",
+  "name": "@spicavi/tauri-plugin-purchases",
   "version": "0.1.0",
   "description": "In-app subscriptions and purchases for Tauri 2 apps — StoreKit 2 on iOS (Google Play Billing planned).",
   "license": "MIT",
