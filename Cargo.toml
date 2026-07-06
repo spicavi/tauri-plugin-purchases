@@ -1,6 +1,6 @@
 [package]
 name = "tauri-plugin-purchases"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["spicavi <avisaksham@gmail.com>"]
 license = "MIT"
 description = "In-app subscriptions and purchases for Tauri 2 apps — StoreKit 2 on iOS (Google Play Billing planned)."

@@ -5,11 +5,13 @@ import PackageDescription
 let package = Package(
     name: "tauri-plugin-purchases",
     platforms: [
-        // Matches Tauri's default iOS deployment target — consumers build
-        // this package at *their* app's target. StoreKit 2 needs iOS 15 at
-        // runtime; the plugin availability-gates and reports unsupported on
-        // older versions instead of raising the deployment floor.
-        .iOS(.v13),
+        // HARD floor: the consumer app's deployment target must be >= 15
+        // (tauri.conf.json bundle.iOS.minimumSystemVersion: "15.0"). Swift
+        // concurrency compiled below 15 goes through the back-deployment
+        // runtime, which crashes at Task creation / inside
+        // libswift_Concurrency when linked through tauri's swift-rs static
+        // lib. Declaring v15 turns that runtime crash into a build error.
+        .iOS(.v15),
         // SwiftPM resolution consistency with the Tauri package's macOS
         // declaration; the target is only ever compiled into iOS builds.
         .macOS(.v12),
