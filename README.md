@@ -40,6 +40,24 @@ let builder = builder.plugin(tauri_plugin_purchases::init());
 { "permissions": ["purchases:default"] }
 ```
 
+**The iOS deployment target must be >= 15**:
+
+```json
+// tauri.conf.json
+{ "bundle": { "iOS": { "minimumSystemVersion": "15.0" } } }
+```
+
+iOS 15 has the same device floor as iOS 14, so this costs no devices. It is
+a hard requirement, not a preference: plugin Swift is compiled at the app's
+`IPHONEOS_DEPLOYMENT_TARGET`, and Swift concurrency (which StoreKit 2 is
+built on) compiled below 15 goes through the back-deployment runtime — which
+crashes at runtime (SIGABRT at `Task` creation / EXC_BAD_ACCESS in
+`libswift_Concurrency`) when linked through Tauri's swift-rs static-lib
+path. The package declares `.iOS(.v15)` so a lower target fails the build
+with a clear message instead. After changing the target, run
+`cargo clean -p tauri-plugin-purchases` — the env var isn't tracked, so the
+Swift won't recompile otherwise.
+
 iOS needs no entitlements-file key for In-App Purchase — the capability is
 implicit for App Store distribution. StoreKit requires the app to be
 **code-signed**, and products must exist in App Store Connect (or a StoreKit
@@ -98,8 +116,9 @@ const listener = await onPurchaseUpdated((p) => {
 | `isSupported`           | `{ supported: true }`        | `{ supported: false }` (planned) | `{ supported: false }` |
 | everything else         | StoreKit 2                   | rejects | rejects |
 
-- **iOS < 15** reports `supported: false` instead of raising the app's
-  deployment target.
+- **iOS deployment targets below 15 fail at build time** (see Installation) —
+  Swift-concurrency back-deployment crashes at runtime through the swift-rs
+  static-lib path, so the package refuses to build rather than crash.
 - **`environment`** is `unknown` on iOS 15 (no `Transaction.environment`
   before iOS 16) — derive it server-side from the JWS payload.
 - Transactions are finished after they are verified and surfaced; unverified
