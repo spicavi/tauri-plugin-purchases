@@ -120,10 +120,17 @@ private func ms(_ date: Date) -> Int64 {
 class PurchasesPlugin: Plugin {
     private var updatesTask: Task<Void, Never>? = nil
 
-    @objc public override func load(webview: WKWebView) {
-        // Deliver transactions that complete outside an active purchase()
-        // call: renewals, Ask to Buy approvals, offer-code redemptions and
-        // refunds/revocations all arrive here.
+    /// Deliver transactions that complete outside an active purchase() call:
+    /// renewals, Ask to Buy approvals, offer-code redemptions and
+    /// refunds/revocations all arrive here.
+    ///
+    /// Armed lazily by the first purchases command instead of in `load` —
+    /// Transaction.updates has crashed inside StoreKit itself on some
+    /// simulator runtimes (EXC_BAD_ACCESS on iOS 26.5), and a broken store
+    /// environment must degrade IAP, never kill the app at boot. Trade-off:
+    /// unfinished transactions surface on first IAP use, not at launch.
+    private func ensureUpdatesListener() {
+        guard updatesTask == nil else { return }
         updatesTask = Task { [weak self] in
             for await update in Transaction.updates {
                 await self?.handleUpdate(update)
@@ -150,6 +157,7 @@ class PurchasesPlugin: Plugin {
     }
 
     @objc public func getProducts(_ invoke: Invoke) throws {
+        ensureUpdatesListener()
         let args = try invoke.parseArgs(GetProductsArgs.self)
         Task {
             do {
@@ -166,6 +174,7 @@ class PurchasesPlugin: Plugin {
     }
 
     @objc public func purchase(_ invoke: Invoke) throws {
+        ensureUpdatesListener()
         let args = try invoke.parseArgs(PurchaseArgs.self)
         Task {
             do {
@@ -214,6 +223,7 @@ class PurchasesPlugin: Plugin {
     }
 
     @objc public func restorePurchases(_ invoke: Invoke) {
+        ensureUpdatesListener()
         Task {
             // Explicit, user-initiated restore: sync with the App Store so a
             // fresh install / new device picks up existing transactions. A
@@ -225,12 +235,14 @@ class PurchasesPlugin: Plugin {
     }
 
     @objc public func getEntitlements(_ invoke: Invoke) {
+        ensureUpdatesListener()
         Task {
             invoke.resolve(PurchaseListPayload(purchases: await currentPurchases()))
         }
     }
 
     @objc public func getSubscriptionStatus(_ invoke: Invoke) throws {
+        ensureUpdatesListener()
         let args = try invoke.parseArgs(SubscriptionStatusArgs.self)
         Task {
             var expiresAt: Int64? = nil
@@ -271,6 +283,7 @@ class PurchasesPlugin: Plugin {
     }
 
     @objc public func manageSubscriptions(_ invoke: Invoke) {
+        ensureUpdatesListener()
         Task { @MainActor in
             let scene = UIApplication.shared.connectedScenes
                 .compactMap { $0 as? UIWindowScene }
