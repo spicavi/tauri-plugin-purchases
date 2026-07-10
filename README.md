@@ -13,7 +13,9 @@ Google Play Billing on Android** (desktop reports unsupported).
 - `purchaseUpdated` events for transactions that complete outside an active
   `purchase()` call — renewals, Ask to Buy approvals, offer-code
   redemptions, refunds/revocations (iOS `Transaction.updates`), pending
-  purchases completing and backgrounded renewals (Android reconcile);
+  purchases completing and new-token purchases like resubscribes or plan
+  changes (Android reconcile; auto-renewals reuse the purchase token and
+  only surface server-side);
   on Android, events that fire before the first listener registers (e.g.
   the first-connection seed replaying unacknowledged purchases) are
   queued and flushed once `onPurchaseUpdated` is registered

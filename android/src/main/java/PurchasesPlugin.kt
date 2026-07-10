@@ -390,9 +390,10 @@ class PurchasesPlugin(private val activity: Activity) :
                                 productId != null && it.products.contains(productId)
                         }
                         if (invoke == null || (purchased == null && !pendingMatch)) {
-                            // Out-of-band delivery (renewal, a pending
-                            // purchase completing, a purchase made from
-                            // another surface) — possibly interleaved with
+                            // Out-of-band delivery (a resubscribe/plan
+                            // change, a pending purchase completing, a
+                            // purchase made from another surface) —
+                            // possibly interleaved with
                             // an UNRELATED in-flight purchase(). Leave any
                             // pending invoke in place: its own flow's
                             // result still completes it.
@@ -531,8 +532,11 @@ class PurchasesPlugin(private val activity: Activity) :
                     it.purchaseState == Purchase.PurchaseState.PURCHASED
                 }
                 for (purchase in owned) {
-                    // This is how PENDING→PURCHASED completions and renewals
-                    // that happened while backgrounded reach JS.
+                    // This is how PENDING→PURCHASED completions and
+                    // new-token purchases made outside the app (resubscribes,
+                    // plan changes) reach JS. Auto-renewals reuse the
+                    // purchase token and are not client-observable — the
+                    // server derives them from the token.
                     if (knownTokens.add(purchase.purchaseToken)) {
                         emitPurchaseUpdated(purchaseJson(purchase))
                     }

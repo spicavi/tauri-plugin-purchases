@@ -232,8 +232,9 @@ export async function manageSubscriptions(): Promise<void> {
 /**
  * Listen for transactions that complete outside an active `purchase()` call:
  * renewals, Ask to Buy approvals, offer-code redemptions and refunds or
- * revocations on iOS; pending purchases completing and backgrounded
- * renewals on Android.
+ * revocations on iOS; pending purchases completing and out-of-band
+ * purchases with new tokens (resubscribes, plan changes) on Android —
+ * auto-renewals reuse the purchase token and only surface server-side.
  */
 export async function onPurchaseUpdated(
 	handler: (purchase: Purchase) => void,
