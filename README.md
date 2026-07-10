@@ -1,21 +1,25 @@
 # Tauri Plugin Purchases
 
-In-app subscriptions and purchases for Tauri 2 apps — **StoreKit 2 on iOS**
-(Google Play Billing planned for Android; desktop reports unsupported).
+In-app subscriptions and purchases for Tauri 2 apps — **StoreKit 2 on iOS,
+Google Play Billing on Android** (desktop reports unsupported).
 
 - Product catalog with locale-formatted pricing, subscription periods, intro
   offers **and per-account intro-offer eligibility**
-- Purchases with `appAccountToken` attribution (UUID), quantity, and
+- Purchases with `appAccountToken` attribution, quantity, and
   non-throwing outcomes (`purchased` / `pending` / `cancelled`)
-- True user-initiated restore (`AppStore.sync()` + current entitlements)
-- Current entitlements and auto-renew subscription status (grace period,
-  billing retry, revocation)
-- `purchaseUpdated` events from `Transaction.updates` — renewals, Ask to Buy
-  approvals, offer-code redemptions, refunds/revocations
-- Every transaction handed to JS is StoreKit-verified and carries its **JWS**
-  (signed transaction) plus the **store environment**
-  (`production`/`sandbox`/`xcode`) so a server can validate independently and
-  never grant production entitlement from a sandbox receipt
+- True user-initiated restore (`AppStore.sync()` + current entitlements on
+  iOS; the store's current purchases view on Android)
+- Current entitlements and auto-renew subscription status
+- `purchaseUpdated` events for transactions that complete outside an active
+  `purchase()` call — renewals, Ask to Buy approvals, offer-code
+  redemptions, refunds/revocations (iOS `Transaction.updates`), pending
+  purchases completing and backgrounded renewals (Android reconcile)
+- Every transaction handed to JS carries its server-side validation
+  credential in `jws` — the StoreKit-verified **JWS** (signed transaction)
+  on iOS, the **Play purchase token** on Android — plus the **store
+  environment** (`production`/`sandbox`/`xcode`, `unknown` on Android) so a
+  server can validate independently and never grant production entitlement
+  from a sandbox receipt
 
 ## Installation
 
@@ -63,6 +67,11 @@ implicit for App Store distribution. StoreKit requires the app to be
 **code-signed**, and products must exist in App Store Connect (or a StoreKit
 configuration file during development).
 
+Android needs no manual setup: the `com.android.vending.BILLING` permission
+manifest-merges from the plugin. Products must exist in the Play Console and
+the app must be known to Play (upload a build to any track, then license
+testers can develop against local builds).
+
 ## Usage
 
 ```ts
@@ -82,10 +91,11 @@ const trialOk = product.subscription?.introEligible ?? false;
 
 // Purchase. Cancellation is an outcome, not an exception.
 const result = await purchase(product.id, {
-	appAccountToken: userUuid, // must be a UUID string
+	appAccountToken: userUuid, // UUID on iOS; any string <= 64 chars on Android
 });
 if (result.outcome === 'purchased') {
-	// Hand result.purchase.jws to your server for validation — the client
+	// Hand result.purchase.jws to your server for validation (the signed
+	// transaction on iOS, the Play purchase token on Android) — the client
 	// fields are for UI only.
 }
 
@@ -98,8 +108,8 @@ const owned = await getEntitlements();
 // Renewal state of an auto-renewing subscription.
 const status = await getSubscriptionStatus(product.id);
 
-// The store's own manage/cancel surface (StoreKit manage sheet, falling
-// back to Apple's subscription settings).
+// The store's own manage/cancel surface (StoreKit manage sheet on iOS,
+// the Play subscriptions page on Android).
 await manageSubscriptions();
 
 // Renewals, Ask to Buy approvals, refunds — anything that completes outside
@@ -111,18 +121,49 @@ const listener = await onPurchaseUpdated((p) => {
 
 ## Platform notes
 
-| Command                 | iOS (15+)                    | Android | Desktop |
-| ----------------------- | ---------------------------- | ------- | ------- |
-| `isSupported`           | `{ supported: true }`        | `{ supported: false }` (planned) | `{ supported: false }` |
-| everything else         | StoreKit 2                   | rejects | rejects |
+| Command         | iOS (15+)             | Android                                | Desktop                |
+| --------------- | --------------------- | -------------------------------------- | ---------------------- |
+| `isSupported`   | `{ supported: true }` | Play connection + subscriptions check  | `{ supported: false }` |
+| everything else | StoreKit 2            | Google Play Billing 8                  | rejects                |
 
-- **iOS deployment targets below 15 fail at build time** (see Installation) —
+### iOS
+
+- **Deployment targets below 15 fail at build time** (see Installation) —
   Swift-concurrency back-deployment crashes at runtime through the swift-rs
   static-lib path, so the package refuses to build rather than crash.
 - **`environment`** is `unknown` on iOS 15 (no `Transaction.environment`
   before iOS 16) — derive it server-side from the JWS payload.
 - Transactions are finished after they are verified and surfaced; unverified
   transactions are never handed to JS.
+
+### Android
+
+- **`jws` carries the Play purchase token** — the server-side validation
+  credential on Android (RevenueCat / Play Developer API). The field name is
+  a StoreKit-ism kept for wire parity; treat it as "the opaque credential
+  your server validates" on both platforms.
+- **Acknowledgement is the `transaction.finish()` mirror.** Play auto-refunds
+  purchases left unacknowledged for ~3 days, so the plugin acknowledges
+  client-side on every path (purchase, first-connection seed, entitlement
+  reads, the on-resume reconcile). Acks are gated on `!isAcknowledged`, so
+  re-acking is harmless.
+- **`expiresAt`/`revokedAt` are absent and `environment` is `unknown`** —
+  neither is client-observable through Play Billing. The server derives
+  expiry, revocation and sandbox-ness from the purchase token.
+- **`restorePurchases()` ≡ `getEntitlements()`** — `queryPurchasesAsync` is
+  already the store's current view for the signed-in Google account; there
+  is no `AppStore.sync()` analogue.
+- **`quantity` is ignored** — Play Billing has no client-side quantity
+  option (multi-quantity is a Play Console feature).
+- **`appAccountToken`** need not be a UUID on Android — any opaque string up
+  to 64 characters (it rides `setObfuscatedAccountId`).
+- **`introEligible` mirrors offer presence**: Play only returns offers the
+  current user is eligible for, so gate trial copy on it exactly like iOS.
+  For that to be store-exact, configure the offer's eligibility in the Play
+  Console as "new customer acquisition".
+- `getSubscriptionStatus` is an honest approximation (`active`,
+  `subscribed`, `willAutoRenew` only) — renewal state, expiry, grace and
+  billing-retry detail are not client-observable; the server owns truth.
 
 ## License
 
