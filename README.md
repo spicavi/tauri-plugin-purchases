@@ -13,7 +13,10 @@ Google Play Billing on Android** (desktop reports unsupported).
 - `purchaseUpdated` events for transactions that complete outside an active
   `purchase()` call — renewals, Ask to Buy approvals, offer-code
   redemptions, refunds/revocations (iOS `Transaction.updates`), pending
-  purchases completing and backgrounded renewals (Android reconcile)
+  purchases completing and backgrounded renewals (Android reconcile);
+  on Android, events that fire before the first listener registers (e.g.
+  the first-connection seed replaying unacknowledged purchases) are
+  queued and flushed once `onPurchaseUpdated` is registered
 - Every transaction handed to JS carries its server-side validation
   credential in `jws` — the StoreKit-verified **JWS** (signed transaction)
   on iOS, the **Play purchase token** on Android — plus the **store

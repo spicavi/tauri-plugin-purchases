@@ -129,6 +129,15 @@ class PurchasesPlugin(private val activity: Activity) :
     /** Best-known owned subscription, for the manage-subscriptions deep link. */
     private var lastOwnedSubProductId: String? = null
 
+    /**
+     * purchaseUpdated payloads emitted before any JS listener registered.
+     * trigger() drops events with no registered channel, and the
+     * first-connection seed can run (via whichever billing command boots
+     * the client) before JS gets a chance to register its listener — so
+     * queue, then flush on registration.
+     */
+    private val pendingPurchaseEvents = mutableListOf<JSObject>()
+
     // ------------------------------------------------------------------
     // Commands
     // ------------------------------------------------------------------
@@ -483,6 +492,32 @@ class PurchasesPlugin(private val activity: Activity) :
         }
     }
 
+    /** Emit purchaseUpdated now, or queue it until a JS listener exists. */
+    private fun emitPurchaseUpdated(payload: JSObject) {
+        if (hasListener("purchaseUpdated")) {
+            trigger("purchaseUpdated", payload)
+        } else {
+            pendingPurchaseEvents.add(payload)
+        }
+    }
+
+    @Command
+    override fun registerListener(invoke: Invoke) {
+        super.registerListener(invoke)
+        // Flush events that fired before this (first) listener registered —
+        // on the main scope, so the flush serializes with every other
+        // mutation of pendingPurchaseEvents.
+        scope.launch {
+            if (hasListener("purchaseUpdated") && pendingPurchaseEvents.isNotEmpty()) {
+                val queued = pendingPurchaseEvents.toList()
+                pendingPurchaseEvents.clear()
+                for (payload in queued) {
+                    trigger("purchaseUpdated", payload)
+                }
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         // Reconcile only once billing has been used this launch — never boot
@@ -499,7 +534,7 @@ class PurchasesPlugin(private val activity: Activity) :
                     // This is how PENDING→PURCHASED completions and renewals
                     // that happened while backgrounded reach JS.
                     if (knownTokens.add(purchase.purchaseToken)) {
-                        trigger("purchaseUpdated", purchaseJson(purchase))
+                        emitPurchaseUpdated(purchaseJson(purchase))
                     }
                     ensureAcknowledged(client, purchase)
                 }
@@ -574,7 +609,7 @@ class PurchasesPlugin(private val activity: Activity) :
             if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED) continue
             knownTokens.add(purchase.purchaseToken)
             if (!purchase.isAcknowledged) {
-                trigger("purchaseUpdated", purchaseJson(purchase))
+                emitPurchaseUpdated(purchaseJson(purchase))
                 ensureAcknowledged(client, purchase)
             }
         }
@@ -644,7 +679,7 @@ class PurchasesPlugin(private val activity: Activity) :
         for (purchase in purchases) {
             if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED) continue
             if (knownTokens.add(purchase.purchaseToken)) {
-                trigger("purchaseUpdated", purchaseJson(purchase))
+                emitPurchaseUpdated(purchaseJson(purchase))
             }
             ensureAcknowledged(client, purchase)
         }
