@@ -37,4 +37,9 @@ android {
 
 dependencies {
     implementation(project(":tauri-android"))
+    // Play Billing 8.x: last major that keeps consumers on compileSdk 34
+    // (9.x forces 35); supported into 2027 and brings
+    // enableAutoServiceReconnection().
+    implementation("com.android.billingclient:billing-ktx:8.3.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 }

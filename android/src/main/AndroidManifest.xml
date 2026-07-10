@@ -1,4 +1,4 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Google Play Billing lands with the Android implementation; the
-         com.android.vending.BILLING permission arrives with it. -->
+    <!-- Required by Google Play Billing; manifest-merges into consumers. -->
+    <uses-permission android:name="com.android.vending.BILLING" />
 </manifest>
