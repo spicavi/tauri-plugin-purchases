@@ -30,7 +30,7 @@ pnpm add @spicavi/tauri-plugin-purchases
 ```toml
 # src-tauri/Cargo.toml
 [target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
-tauri-plugin-purchases = "0.1"
+tauri-plugin-purchases = "0.2"
 ```
 
 ```rust
