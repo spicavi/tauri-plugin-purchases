@@ -502,6 +502,17 @@ class PurchasesPlugin(private val activity: Activity) :
         }
     }
 
+    /**
+     * Cross-platform wire parity: iOS arms its StoreKit updates stream here
+     * (guest bindings invoke it right after the JS listener registers).
+     * Android already queues pre-registration events and flushes them in
+     * [registerListener], so there is nothing left to do.
+     */
+    @Command
+    fun startPurchaseUpdates(invoke: Invoke) {
+        invoke.resolve()
+    }
+
     @Command
     override fun registerListener(invoke: Invoke) {
         super.registerListener(invoke)

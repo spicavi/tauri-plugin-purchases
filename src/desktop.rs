@@ -4,7 +4,7 @@ use tauri::{plugin::PluginApi, AppHandle, Runtime};
 use crate::models::*;
 use crate::Error;
 
-const UNSUPPORTED: &str = "in-app purchases are only available on iOS";
+const UNSUPPORTED: &str = "in-app purchases are only available on iOS and Android";
 
 pub fn init<R: Runtime, C: DeserializeOwned>(
     _app: &AppHandle<R>,
@@ -52,5 +52,11 @@ impl<R: Runtime> Purchases<R> {
 
     pub async fn manage_subscriptions(&self) -> crate::Result<()> {
         Err(Error::Unsupported(UNSUPPORTED))
+    }
+
+    /// Nothing to arm on desktop; a quiet no-op keeps the guest bindings'
+    /// post-registration call harmless everywhere.
+    pub async fn start_purchase_updates(&self) -> crate::Result<()> {
+        Ok(())
     }
 }

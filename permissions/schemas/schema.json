@@ -403,10 +403,22 @@
           "markdownDescription": "Denies the restore_purchases command without any pre-configured scope."
         },
         {
-          "description": "Default permissions for the purchases plugin.\n\n#### Granted Permissions\n\n- Support probe (`is_supported`) and product catalog reads\n  (`get_products`, `get_subscription_status`, `get_entitlements`).\n- Store payment flows (`purchase`, `restore_purchases`) and the store's own\n  subscription-management surface (`manage_subscriptions`).\n- Purchase-update events (`register_listener`, `remove_listener`).\n\nNote: these are Tauri IPC permissions. Actual purchases are additionally\ngated by the OS payment sheet — nothing can be charged without the user\nconfirming in the store's own UI.\n\n#### This default permission set includes:\n\n- `allow-is-supported`\n- `allow-get-products`\n- `allow-purchase`\n- `allow-restore-purchases`\n- `allow-get-entitlements`\n- `allow-get-subscription-status`\n- `allow-manage-subscriptions`\n- `allow-register-listener`\n- `allow-remove-listener`",
+          "description": "Enables the start_purchase_updates command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-start-purchase-updates",
+          "markdownDescription": "Enables the start_purchase_updates command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the start_purchase_updates command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-start-purchase-updates",
+          "markdownDescription": "Denies the start_purchase_updates command without any pre-configured scope."
+        },
+        {
+          "description": "Default permissions for the purchases plugin.\n\n#### Granted Permissions\n\n- Support probe (`is_supported`) and product catalog reads\n  (`get_products`, `get_subscription_status`, `get_entitlements`).\n- Store payment flows (`purchase`, `restore_purchases`) and the store's own\n  subscription-management surface (`manage_subscriptions`).\n- Purchase-update events (`register_listener`, `remove_listener`,\n  `start_purchase_updates`).\n\nNote: these are Tauri IPC permissions. Actual purchases are additionally\ngated by the OS payment sheet — nothing can be charged without the user\nconfirming in the store's own UI.\n\n#### This default permission set includes:\n\n- `allow-is-supported`\n- `allow-get-products`\n- `allow-purchase`\n- `allow-restore-purchases`\n- `allow-get-entitlements`\n- `allow-get-subscription-status`\n- `allow-manage-subscriptions`\n- `allow-start-purchase-updates`\n- `allow-register-listener`\n- `allow-remove-listener`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Default permissions for the purchases plugin.\n\n#### Granted Permissions\n\n- Support probe (`is_supported`) and product catalog reads\n  (`get_products`, `get_subscription_status`, `get_entitlements`).\n- Store payment flows (`purchase`, `restore_purchases`) and the store's own\n  subscription-management surface (`manage_subscriptions`).\n- Purchase-update events (`register_listener`, `remove_listener`).\n\nNote: these are Tauri IPC permissions. Actual purchases are additionally\ngated by the OS payment sheet — nothing can be charged without the user\nconfirming in the store's own UI.\n\n#### This default permission set includes:\n\n- `allow-is-supported`\n- `allow-get-products`\n- `allow-purchase`\n- `allow-restore-purchases`\n- `allow-get-entitlements`\n- `allow-get-subscription-status`\n- `allow-manage-subscriptions`\n- `allow-register-listener`\n- `allow-remove-listener`"
+          "markdownDescription": "Default permissions for the purchases plugin.\n\n#### Granted Permissions\n\n- Support probe (`is_supported`) and product catalog reads\n  (`get_products`, `get_subscription_status`, `get_entitlements`).\n- Store payment flows (`purchase`, `restore_purchases`) and the store's own\n  subscription-management surface (`manage_subscriptions`).\n- Purchase-update events (`register_listener`, `remove_listener`,\n  `start_purchase_updates`).\n\nNote: these are Tauri IPC permissions. Actual purchases are additionally\ngated by the OS payment sheet — nothing can be charged without the user\nconfirming in the store's own UI.\n\n#### This default permission set includes:\n\n- `allow-is-supported`\n- `allow-get-products`\n- `allow-purchase`\n- `allow-restore-purchases`\n- `allow-get-entitlements`\n- `allow-get-subscription-status`\n- `allow-manage-subscriptions`\n- `allow-start-purchase-updates`\n- `allow-register-listener`\n- `allow-remove-listener`"
         }
       ]
     }

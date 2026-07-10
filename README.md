@@ -18,7 +18,10 @@ Google Play Billing on Android** (desktop reports unsupported).
   only surface server-side);
   on Android, events that fire before the first listener registers (e.g.
   the first-connection seed replaying unacknowledged purchases) are
-  queued and flushed once `onPurchaseUpdated` is registered
+  queued and flushed once `onPurchaseUpdated` is registered; on iOS the
+  updates stream is armed BY `onPurchaseUpdated` registering — earlier
+  transactions stay in StoreKit's unfinished queue (which survives
+  relaunches) and are drained on registration
 - Every transaction handed to JS carries its server-side validation
   credential in `jws` — the StoreKit-verified **JWS** (signed transaction)
   on iOS, the **Play purchase token** on Android — plus the **store

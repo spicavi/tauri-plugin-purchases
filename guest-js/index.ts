@@ -235,9 +235,22 @@ export async function manageSubscriptions(): Promise<void> {
  * revocations on iOS; pending purchases completing and out-of-band
  * purchases with new tokens (resubscribes, plan changes) on Android —
  * auto-renewals reuse the purchase token and only surface server-side.
+ *
+ * Events that complete before the first listener registers are not lost:
+ * Android queues them in memory and flushes on registration; iOS leaves the
+ * transactions unfinished in StoreKit's own queue (which survives
+ * relaunches) and drains it here, right after the channel exists.
  */
 export async function onPurchaseUpdated(
 	handler: (purchase: Purchase) => void,
 ): Promise<PluginListener> {
-	return await addPluginListener('purchases', 'purchaseUpdated', handler);
+	const listener = await addPluginListener('purchases', 'purchaseUpdated', handler);
+	// The channel exists now — let the platform deliver anything that
+	// completed before registration (iOS drains unfinished transactions and
+	// arms Transaction.updates; Android flushed on registration already and
+	// treats this as a no-op).
+	await invoke('plugin:purchases|start_purchase_updates').catch(() => {
+		// Desktop / a pre-0.2 host: nothing to arm.
+	});
+	return listener;
 }

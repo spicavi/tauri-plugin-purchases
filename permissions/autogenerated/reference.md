@@ -8,7 +8,8 @@ Default permissions for the purchases plugin.
   (`get_products`, `get_subscription_status`, `get_entitlements`).
 - Store payment flows (`purchase`, `restore_purchases`) and the store's own
   subscription-management surface (`manage_subscriptions`).
-- Purchase-update events (`register_listener`, `remove_listener`).
+- Purchase-update events (`register_listener`, `remove_listener`,
+  `start_purchase_updates`).
 
 Note: these are Tauri IPC permissions. Actual purchases are additionally
 gated by the OS payment sheet — nothing can be charged without the user
@@ -23,6 +24,7 @@ confirming in the store's own UI.
 - `allow-get-entitlements`
 - `allow-get-subscription-status`
 - `allow-manage-subscriptions`
+- `allow-start-purchase-updates`
 - `allow-register-listener`
 - `allow-remove-listener`
 
@@ -265,6 +267,32 @@ Enables the restore_purchases command without any pre-configured scope.
 <td>
 
 Denies the restore_purchases command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`purchases:allow-start-purchase-updates`
+
+</td>
+<td>
+
+Enables the start_purchase_updates command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`purchases:deny-start-purchase-updates`
+
+</td>
+<td>
+
+Denies the start_purchase_updates command without any pre-configured scope.
 
 </td>
 </tr>

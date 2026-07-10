@@ -5,9 +5,9 @@
 //!   entitlements-file key — the capability is implicit for App Store apps;
 //!   products must exist in App Store Connect (or a StoreKit configuration
 //!   file during development).
-//! - **Android**: not yet implemented — every command rejects and
-//!   `is_supported` reports `{ supported: false }`. Planned on Google Play
-//!   Billing.
+//! - **Android**: Google Play Billing. `jws` carries the Play purchase
+//!   token (the server-side validation credential); purchases are
+//!   acknowledged client-side so Play never auto-refunds them.
 //! - **Desktop**: every command rejects with `Unsupported`; `is_supported`
 //!   reports `{ supported: false, platform: "unsupported" }`.
 //!
@@ -64,6 +64,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::get_entitlements,
             commands::get_subscription_status,
             commands::manage_subscriptions,
+            commands::start_purchase_updates,
         ])
         .setup(|app, api| {
             #[cfg(mobile)]
