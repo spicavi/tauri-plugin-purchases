@@ -1,9 +1,17 @@
 {
   "name": "@spicavi/tauri-plugin-purchases",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "In-app subscriptions and purchases for Tauri 2 apps — StoreKit 2 on iOS, Google Play Billing on Android.",
   "license": "MIT",
   "author": "spicavi <avisaksham@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spicavi/tauri-plugin-purchases.git"
+  },
+  "bugs": {
+    "url": "https://github.com/spicavi/tauri-plugin-purchases/issues"
+  },
+  "homepage": "https://github.com/spicavi/tauri-plugin-purchases#readme",
   "type": "module",
   "types": "./dist-js/index.d.ts",
   "main": "./dist-js/index.cjs",
