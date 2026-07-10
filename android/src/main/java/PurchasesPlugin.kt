@@ -120,6 +120,12 @@ class PurchasesPlugin(private val activity: Activity) :
     private var pendingPurchase: Invoke? = null
     private var pendingProductId: String? = null
 
+    /**
+     * True once launchBillingFlow accepted the in-flight purchase — only
+     * then can a non-OK onPurchasesUpdated (cancel/error) belong to it.
+     */
+    private var flowLaunched = false
+
     /** Best-known owned subscription, for the manage-subscriptions deep link. */
     private var lastOwnedSubProductId: String? = null
 
@@ -217,6 +223,13 @@ class PurchasesPlugin(private val activity: Activity) :
             try {
                 val client = requireClient()
                 val details = productDetails(client, args.productId)
+                // A store event may have matched and completed this invoke
+                // during the suspensions above (e.g. this product's PENDING
+                // purchase flipping to PURCHASED out of band) — never
+                // complete it twice, and never launch a payment sheet
+                // nobody awaits. No suspension below until the flow result,
+                // so the identity holds through the completions that follow.
+                if (pendingPurchase !== invoke) return@launch
                 if (details == null) {
                     clearPending()
                     invoke.reject("product not found: ${args.productId}")
@@ -242,6 +255,7 @@ class PurchasesPlugin(private val activity: Activity) :
                     BillingClient.BillingResponseCode.OK -> {
                         // The payment sheet is up; onPurchasesUpdated
                         // completes this invoke.
+                        flowLaunched = true
                     }
                     BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> {
                         clearPending()
@@ -253,8 +267,10 @@ class PurchasesPlugin(private val activity: Activity) :
                     }
                 }
             } catch (e: Exception) {
-                if (pendingPurchase === invoke) clearPending()
-                invoke.reject(e.message ?: "purchase failed")
+                if (pendingPurchase === invoke) {
+                    clearPending()
+                    invoke.reject(e.message ?: "purchase failed")
+                }
             }
         }
     }
@@ -345,23 +361,48 @@ class PurchasesPlugin(private val activity: Activity) :
 
     override fun onPurchasesUpdated(result: BillingResult, purchases: List<Purchase>?) {
         scope.launch {
+            // Snapshot, do NOT consume: this callback serves both the
+            // in-flight purchase() flow and out-of-band deliveries, and
+            // only a result that provably belongs to the flow may complete
+            // its invoke.
             val invoke = pendingPurchase
             val productId = pendingProductId
-            clearPending()
+            var completed = false
             try {
                 when (result.responseCode) {
                     BillingClient.BillingResponseCode.OK -> {
                         val batch = purchases.orEmpty()
-                        if (invoke == null) {
+                        val purchased = batch.firstOrNull {
+                            it.purchaseState == Purchase.PurchaseState.PURCHASED &&
+                                productId != null && it.products.contains(productId)
+                        }
+                        val pendingMatch = batch.any {
+                            it.purchaseState == Purchase.PurchaseState.PENDING &&
+                                productId != null && it.products.contains(productId)
+                        }
+                        if (invoke == null || (purchased == null && !pendingMatch)) {
                             // Out-of-band delivery (renewal, a pending
                             // purchase completing, a purchase made from
-                            // another surface).
+                            // another surface) — possibly interleaved with
+                            // an UNRELATED in-flight purchase(). Leave any
+                            // pending invoke in place: its own flow's
+                            // result still completes it.
                             handleOutOfBand(batch)
+                            if (invoke != null && flowLaunched && batch.isEmpty() &&
+                                pendingPurchase === invoke
+                            ) {
+                                // …except an empty OK callback for a flow
+                                // that DID launch: that is our result —
+                                // broken, but ours. Reject, don't hang.
+                                clearPending()
+                                completed = true
+                                invoke.reject(
+                                    "the store reported success without a purchase",
+                                )
+                            }
                             return@launch
                         }
-                        val purchased = batch.firstOrNull {
-                            it.purchaseState == Purchase.PurchaseState.PURCHASED
-                        }
+                        clearPending()
                         if (purchased != null) {
                             knownTokens.add(purchased.purchaseToken)
                             purchased.products.firstOrNull()?.let { id ->
@@ -378,42 +419,66 @@ class PurchasesPlugin(private val activity: Activity) :
                             val res = JSObject()
                             res.put("outcome", "purchased")
                             res.put("purchase", purchaseJson(purchased))
+                            completed = true
                             invoke.resolve(res)
-                        } else if (batch.any {
-                                it.purchaseState == Purchase.PurchaseState.PENDING
-                            }
-                        ) {
+                        } else {
                             // e.g. a slow-card / cash payment. PENDING tokens
                             // are deliberately NOT recorded in knownTokens:
                             // the PURCHASED flip must still surface, via the
-                            // onResume reconcile or a later update.
+                            // onResume reconcile or a later update. Unrelated
+                            // PURCHASED items in the same batch still go out
+                            // as events.
+                            handleOutOfBand(batch)
                             val res = JSObject()
                             res.put("outcome", "pending")
+                            completed = true
                             invoke.resolve(res)
-                        } else {
-                            invoke.reject("the store reported success without a purchase")
                         }
                     }
                     BillingClient.BillingResponseCode.USER_CANCELED -> {
                         // Dismissing the payment sheet is an outcome, not an
-                        // error.
-                        if (invoke != null) {
+                        // error — but only a flow that actually launched can
+                        // be cancelled.
+                        if (invoke != null && flowLaunched && pendingPurchase === invoke) {
+                            clearPending()
                             val res = JSObject()
                             res.put("outcome", "cancelled")
+                            completed = true
                             invoke.resolve(res)
                         }
                     }
                     BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> {
-                        if (invoke != null && productId != null) {
-                            resolveAlreadyOwned(requireClient(), invoke, productId)
-                        } else {
-                            invoke?.reject("purchase failed: ${describe(result)}")
+                        if (invoke != null && flowLaunched && pendingPurchase === invoke) {
+                            clearPending()
+                            if (productId != null) {
+                                resolveAlreadyOwned(requireClient(), invoke, productId)
+                            } else {
+                                invoke.reject("purchase failed: ${describe(result)}")
+                            }
+                            completed = true
                         }
                     }
-                    else -> invoke?.reject("purchase failed: ${describe(result)}")
+                    else -> {
+                        if (invoke != null && flowLaunched && pendingPurchase === invoke) {
+                            clearPending()
+                            completed = true
+                            invoke.reject("purchase failed: ${describe(result)}")
+                        } else {
+                            Log.w(
+                                TAG,
+                                "ignoring purchase update without a launched flow: " +
+                                    describe(result),
+                            )
+                        }
+                    }
                 }
             } catch (e: Exception) {
-                invoke?.reject(e.message ?: "purchase failed")
+                if (invoke != null && !completed) {
+                    if (pendingPurchase === invoke) clearPending()
+                    invoke.reject(e.message ?: "purchase failed")
+                } else {
+                    Log.w(TAG, "purchase update handling failed: ${e.message}")
+                }
             }
         }
     }
@@ -522,6 +587,7 @@ class PurchasesPlugin(private val activity: Activity) :
     private fun clearPending() {
         pendingPurchase = null
         pendingProductId = null
+        flowLaunched = false
     }
 
     private fun resolveEntitlements(invoke: Invoke) {
