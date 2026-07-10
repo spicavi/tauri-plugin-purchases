@@ -80,4 +80,15 @@ impl<R: Runtime> Purchases<R> {
             .await
             .map_err(Into::into)
     }
+
+    /// Arm out-of-band purchase delivery once the JS `purchaseUpdated`
+    /// listener exists (iOS drains StoreKit's unfinished queue and starts
+    /// Transaction.updates; Android flushes its queue on listener
+    /// registration and treats this as a no-op).
+    pub async fn start_purchase_updates(&self) -> crate::Result<()> {
+        self.0
+            .run_mobile_plugin_async("startPurchaseUpdates", ())
+            .await
+            .map_err(Into::into)
+    }
 }

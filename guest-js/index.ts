@@ -26,8 +26,8 @@ export type ProductKind =
 /**
  * The store environment a transaction was made in. Server-side validation
  * must never grant production entitlement from a `sandbox`/`xcode` purchase.
- * `unknown` means the OS could not report it (iOS 15) — the server must
- * derive it from the JWS instead.
+ * `unknown` means the OS could not report it (iOS 15, and always on
+ * Android) — the server must derive it from `jws` instead.
  */
 export type StoreEnvironment = 'production' | 'sandbox' | 'xcode' | 'unknown';
 
@@ -80,9 +80,9 @@ export type PurchaseState = 'purchased' | 'revoked';
 export type OwnershipKind = 'purchased' | 'familyShared';
 
 /**
- * A verified store transaction. `jws` carries the signed transaction for
- * server-side validation — the client-side fields are for UI only and must
- * never be trusted as an entitlement source.
+ * A verified store transaction. `jws` carries the server-side validation
+ * credential — the client-side fields are for UI only and must never be
+ * trusted as an entitlement source.
  */
 export interface Purchase {
 	productId: string;
@@ -99,7 +99,13 @@ export interface Purchase {
 	quantity: number;
 	ownership: OwnershipKind;
 	environment: StoreEnvironment;
-	/** StoreKit 2 signed transaction (JWS compact serialization). */
+	/**
+	 * The server-side validation credential: the StoreKit 2 signed
+	 * transaction (JWS compact serialization) on iOS, the Google Play
+	 * purchase token on Android. The field name is a StoreKit-ism kept for
+	 * wire parity — treat it as "the opaque credential the server
+	 * validates" on both platforms.
+	 */
 	jws: string;
 	bundleId: string;
 }
@@ -141,10 +147,12 @@ export interface SubscriptionStatus {
 export interface PurchaseRequestOptions {
 	/**
 	 * Opaque account attribution forwarded to the store (StoreKit
-	 * `appAccountToken`). Must be a UUID string — derive one
-	 * deterministically from your user id if needed.
+	 * `appAccountToken`, Play `setObfuscatedAccountId`). Must be a UUID
+	 * string on iOS — derive one deterministically from your user id if
+	 * needed; any string up to 64 characters on Android.
 	 */
 	appAccountToken?: string;
+	/** iOS only — Play Billing has no client-side quantity option. */
 	quantity?: number;
 }
 
@@ -212,9 +220,10 @@ export async function getSubscriptionStatus(
 
 /**
  * Open the store's own subscription-management surface (the StoreKit manage
- * sheet, falling back to Apple's subscriptions settings page). This is the
- * correct — and, under Apple's anti-steering rules, the only — affordance
- * for cancelling or changing a store subscription in-app.
+ * sheet on iOS, falling back to Apple's subscriptions settings page; the
+ * Play subscriptions page on Android). This is the correct — and, under the
+ * stores' anti-steering rules, the only — affordance for cancelling or
+ * changing a store subscription in-app.
  */
 export async function manageSubscriptions(): Promise<void> {
 	await invoke('plugin:purchases|manage_subscriptions');
@@ -223,10 +232,25 @@ export async function manageSubscriptions(): Promise<void> {
 /**
  * Listen for transactions that complete outside an active `purchase()` call:
  * renewals, Ask to Buy approvals, offer-code redemptions and refunds or
- * revocations.
+ * revocations on iOS; pending purchases completing and out-of-band
+ * purchases with new tokens (resubscribes, plan changes) on Android —
+ * auto-renewals reuse the purchase token and only surface server-side.
+ *
+ * Events that complete before the first listener registers are not lost:
+ * Android queues them in memory and flushes on registration; iOS leaves the
+ * transactions unfinished in StoreKit's own queue (which survives
+ * relaunches) and drains it here, right after the channel exists.
  */
 export async function onPurchaseUpdated(
 	handler: (purchase: Purchase) => void,
 ): Promise<PluginListener> {
-	return await addPluginListener('purchases', 'purchaseUpdated', handler);
+	const listener = await addPluginListener('purchases', 'purchaseUpdated', handler);
+	// The channel exists now — let the platform deliver anything that
+	// completed before registration (iOS drains unfinished transactions and
+	// arms Transaction.updates; Android flushed on registration already and
+	// treats this as a no-op).
+	await invoke('plugin:purchases|start_purchase_updates').catch(() => {
+		// Desktop / a pre-0.2 host: nothing to arm.
+	});
+	return listener;
 }

@@ -47,3 +47,8 @@ pub(crate) async fn get_subscription_status<R: Runtime>(
 pub(crate) async fn manage_subscriptions<R: Runtime>(app: AppHandle<R>) -> Result<()> {
     app.purchases().manage_subscriptions().await
 }
+
+#[command]
+pub(crate) async fn start_purchase_updates<R: Runtime>(app: AppHandle<R>) -> Result<()> {
+    app.purchases().start_purchase_updates().await
+}

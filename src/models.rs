@@ -29,6 +29,8 @@ pub enum ProductKind {
 
 /// The store environment a transaction was made in. Server-side validation
 /// must never grant production entitlement from a `sandbox`/`xcode` purchase.
+/// `unknown` means the OS could not report it (iOS 15, and always on
+/// Android) — the server must derive it from `jws` instead.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum StoreEnvironment {
@@ -108,9 +110,9 @@ pub enum OwnershipKind {
     FamilyShared,
 }
 
-/// A verified store transaction. `jws` carries the signed transaction for
-/// server-side validation — the client-side fields are for UI only and must
-/// never be trusted as an entitlement source.
+/// A verified store transaction. `jws` carries the server-side validation
+/// credential — the client-side fields are for UI only and must never be
+/// trusted as an entitlement source.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Purchase {
@@ -132,7 +134,11 @@ pub struct Purchase {
     pub quantity: u32,
     pub ownership: OwnershipKind,
     pub environment: StoreEnvironment,
-    /// StoreKit 2 signed transaction (JWS compact serialization).
+    /// The server-side validation credential: the StoreKit 2 signed
+    /// transaction (JWS compact serialization) on iOS, the Google Play
+    /// purchase token on Android. The field name is a StoreKit-ism kept for
+    /// wire parity — treat it as "the opaque credential the server
+    /// validates" on both platforms.
     pub jws: String,
     pub bundle_id: String,
 }
@@ -205,9 +211,11 @@ pub struct GetProductsOptions {
 pub struct PurchaseOptions {
     pub product_id: String,
     /// Opaque account attribution forwarded to the store (StoreKit
-    /// `appAccountToken`). Must be a UUID string.
+    /// `appAccountToken`, Play `setObfuscatedAccountId`). Must be a UUID
+    /// string on iOS; any string up to 64 characters on Android.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub app_account_token: Option<String>,
+    /// iOS only — Play Billing has no client-side quantity option.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quantity: Option<u32>,
 }

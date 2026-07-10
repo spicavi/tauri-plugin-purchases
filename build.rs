@@ -7,7 +7,9 @@ const COMMANDS: &[&str] = &[
     "get_subscription_status",
     "manage_subscriptions",
     // Purchase updates (renewals, revocations, deferred approvals) are pushed
-    // as `purchaseUpdated` plugin events, so the listener commands are needed.
+    // as `purchaseUpdated` plugin events, so the listener commands are needed;
+    // `start_purchase_updates` arms delivery once the JS listener exists.
+    "start_purchase_updates",
     "register_listener",
     "remove_listener",
 ];

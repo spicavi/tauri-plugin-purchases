@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-start-purchase-updates"
+description = "Enables the start_purchase_updates command without any pre-configured scope."
+commands.allow = ["start_purchase_updates"]
+
+[[permission]]
+identifier = "deny-start-purchase-updates"
+description = "Denies the start_purchase_updates command without any pre-configured scope."
+commands.deny = ["start_purchase_updates"]
