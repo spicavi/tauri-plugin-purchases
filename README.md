@@ -138,6 +138,13 @@ const listener = await onPurchaseUpdated((p) => {
 
 ### Android
 
+- **Your app's Kotlin Gradle Plugin must be ≥ 2.1.** billing-ktx 8.3.0 ships
+  Kotlin 2.2 metadata (and pulls stdlib 2.2.x), which Kotlin 1.9 consumers
+  cannot read — the symptom is a wall of `Unresolved reference` errors for
+  ordinary stdlib symbols when compiling this plugin's module. Older Tauri
+  Android templates pin `kotlin-gradle-plugin:1.9.x` in
+  `src-tauri/gen/android/build.gradle.kts`; bump it to `2.2.10` (Kotlin 2.x
+  reads all older plugin metadata, so other Kotlin plugins are unaffected).
 - **`jws` carries the Play purchase token** — the server-side validation
   credential on Android (RevenueCat / Play Developer API). The field name is
   a StoreKit-ism kept for wire parity; treat it as "the opaque credential
